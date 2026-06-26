@@ -1,28 +1,48 @@
 import { useEffect, useState } from 'react'
-import { FiPlus, FiTrash2, FiEdit2, FiSave } from 'react-icons/fi'
+import { FiPlus, FiTrash2, FiEdit2 } from 'react-icons/fi'
 import { getStats, createItem, updateItem, deleteItem } from '../../services/firestoreService'
 import { COLLECTIONS, STAT_ICON_OPTIONS } from '../../constants/collections'
+import { useAdminAction } from '../../hooks/useAdminAction'
+import AdminFeedback from '../components/AdminFeedback'
+import AdminFormActions from '../components/AdminFormActions'
 import type { Stat } from '../../models/types'
 import '../components/AdminForms.css'
 
 export default function StatsPage() {
   const [items, setItems] = useState<(Stat & { id: string })[]>([])
   const [editing, setEditing] = useState<(Stat & { id?: string }) | null>(null)
+  const { saving, feedback, run, clearFeedback } = useAdminAction()
 
   const load = () => getStats().then(setItems)
   useEffect(() => { load() }, [])
 
-  const save = async () => {
+  const handleSave = () => {
     if (!editing) return
-    if (editing.id) await updateItem(COLLECTIONS.STATS, editing.id, editing)
-    else await createItem(COLLECTIONS.STATS, editing)
-    setEditing(null)
-    load()
+    run(async () => {
+      if (editing.id) await updateItem(COLLECTIONS.STATS, editing.id, editing)
+      else await createItem(COLLECTIONS.STATS, editing)
+      setEditing(null)
+      await load()
+    }, editing.id ? 'Stat updated successfully!' : 'Stat created successfully!')
+  }
+
+  const handleDelete = (id: string) => {
+    run(async () => {
+      await deleteItem(COLLECTIONS.STATS, id)
+      await load()
+    }, 'Stat deleted.')
   }
 
   if (editing) {
     return (
-      <div>
+      <div className={saving ? 'admin-panel--busy' : ''}>
+        <AdminFeedback feedback={feedback} onDismiss={clearFeedback} />
+        {saving && (
+          <div className="admin-saving-bar">
+            <span className="admin-btn-spinner" />
+            Saving stat…
+          </div>
+        )}
         <h1 className="admin-page-title">{editing.id ? 'Edit' : 'New'} Stat</h1>
         <div className="admin-card">
           <div className="admin-form-row">
@@ -40,16 +60,14 @@ export default function StatsPage() {
             <div className="admin-form-group"><label>Order</label><input type="number" value={editing.order} onChange={(e) => setEditing({ ...editing, order: +e.target.value })} /></div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="admin-btn admin-btn--primary" onClick={save}><FiSave /> Save</button>
-          <button className="admin-btn admin-btn--ghost" onClick={() => setEditing(null)}>Cancel</button>
-        </div>
+        <AdminFormActions saving={saving} onSave={handleSave} onCancel={() => setEditing(null)} savingLabel="Saving..." />
       </div>
     )
   }
 
   return (
     <div>
+      <AdminFeedback feedback={feedback} onDismiss={clearFeedback} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div><h1 className="admin-page-title">Stats</h1><p className="admin-page-subtitle" style={{ marginBottom: 0 }}>Portfolio statistics</p></div>
         <button className="admin-btn admin-btn--primary" onClick={() => setEditing({ icon: 'FaAward', number: '', label: '', description: '', order: items.length })}><FiPlus /> Add</button>
@@ -59,7 +77,7 @@ export default function StatsPage() {
           <div><h4>{item.number} — {item.label}</h4><p>{item.description}</p></div>
           <div className="admin-actions">
             <button className="admin-btn admin-btn--ghost" onClick={() => setEditing(item)}><FiEdit2 /></button>
-            <button className="admin-btn admin-btn--danger" onClick={() => deleteItem(COLLECTIONS.STATS, item.id).then(load)}><FiTrash2 /></button>
+            <button className="admin-btn admin-btn--danger" disabled={saving} onClick={() => handleDelete(item.id)}><FiTrash2 /></button>
           </div>
         </div>
       ))}

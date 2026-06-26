@@ -1,8 +1,11 @@
 import { useEffect, useState, useRef } from 'react'
-import { FiPlus, FiTrash2, FiEdit2, FiSave } from 'react-icons/fi'
+import { FiPlus, FiTrash2, FiEdit2 } from 'react-icons/fi'
 import { getProjects, createItem, updateItem, deleteItem } from '../../services/firestoreService'
 import { uploadProjectAsset } from '../../utils/uploadImage'
 import { COLLECTIONS } from '../../constants/collections'
+import { useAdminAction } from '../../hooks/useAdminAction'
+import AdminFeedback from '../components/AdminFeedback'
+import AdminFormActions from '../components/AdminFormActions'
 import type { Project } from '../../models/types'
 import '../components/AdminForms.css'
 
@@ -20,22 +23,30 @@ export default function ProjectsPage() {
   const [editing, setEditing] = useState<(Project & { id?: string }) | null>(null)
   const [techInput, setTechInput] = useState('')
   const [featureInput, setFeatureInput] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const { saving, feedback, run, clearFeedback, setFeedback } = useAdminAction()
   const imgRef = useRef<HTMLInputElement>(null)
   const pdfRef = useRef<HTMLInputElement>(null)
 
   const load = () => getProjects().then(setItems)
   useEffect(() => { load() }, [])
 
-  const save = async () => {
+  const handleSave = () => {
     if (!editing) return
-    const data = { ...editing, features: editing.features || [], technologies: editing.technologies || [] }
-    if (editing.id) {
-      await updateItem(COLLECTIONS.PROJECTS, editing.id, data)
-    } else {
-      await createItem(COLLECTIONS.PROJECTS, data)
-    }
-    setEditing(null)
-    load()
+    run(async () => {
+      const data = { ...editing, features: editing.features || [], technologies: editing.technologies || [] }
+      if (editing.id) await updateItem(COLLECTIONS.PROJECTS, editing.id, data)
+      else await createItem(COLLECTIONS.PROJECTS, data)
+      setEditing(null)
+      await load()
+    }, editing.id ? 'Project updated successfully!' : 'Project created successfully!')
+  }
+
+  const handleDelete = (id: string) => {
+    run(async () => {
+      await deleteItem(COLLECTIONS.PROJECTS, id)
+      await load()
+    }, 'Project deleted.')
   }
 
   const addTag = (field: 'technologies' | 'features', value: string, setter: (v: string) => void) => {
@@ -53,32 +64,58 @@ export default function ProjectsPage() {
 
   const handleImageUpload = async (file: File) => {
     if (!editing) return
-    const folderId = projectFolderId(editing)
-    const { url, publicId } = await uploadProjectAsset(file, folderId, 'images')
-    const assets = editing.assets || { images: [], documents: [] }
-    const newAsset = { url, publicId, alt: editing.title, type: 'image' as const }
-    setEditing({
-      ...editing,
-      assets: { ...assets, images: [...assets.images, newAsset] },
-      images: [...(editing.images || []), { url, alt: editing.title }],
-    })
+    setUploading(true)
+    setFeedback(null)
+    try {
+      const folderId = projectFolderId(editing)
+      const { url, publicId } = await uploadProjectAsset(file, folderId, 'images')
+      const assets = editing.assets || { images: [], documents: [] }
+      const newAsset = { url, publicId, alt: editing.title, type: 'image' as const }
+      setEditing({
+        ...editing,
+        assets: { ...assets, images: [...assets.images, newAsset] },
+        images: [...(editing.images || []), { url, alt: editing.title }],
+      })
+      setFeedback({ type: 'success', message: 'Image uploaded successfully!' })
+    } catch {
+      setFeedback({ type: 'error', message: 'Image upload failed.' })
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handlePdfUpload = async (file: File) => {
     if (!editing) return
-    const folderId = projectFolderId(editing)
-    const { url, publicId } = await uploadProjectAsset(file, folderId, 'documents')
-    const assets = editing.assets || { images: [], documents: [] }
-    const newDoc = { url, publicId, name: file.name, type: 'pdf' as const }
-    setEditing({
-      ...editing,
-      assets: { ...assets, documents: [...assets.documents, newDoc] },
-    })
+    setUploading(true)
+    setFeedback(null)
+    try {
+      const folderId = projectFolderId(editing)
+      const { url, publicId } = await uploadProjectAsset(file, folderId, 'documents')
+      const assets = editing.assets || { images: [], documents: [] }
+      const newDoc = { url, publicId, name: file.name, type: 'pdf' as const }
+      setEditing({
+        ...editing,
+        assets: { ...assets, documents: [...assets.documents, newDoc] },
+      })
+      setFeedback({ type: 'success', message: 'PDF uploaded successfully!' })
+    } catch {
+      setFeedback({ type: 'error', message: 'PDF upload failed.' })
+    } finally {
+      setUploading(false)
+    }
   }
 
   if (editing) {
+    const busy = saving || uploading
     return (
-      <div>
+      <div className={busy ? 'admin-panel--busy' : ''}>
+        <AdminFeedback feedback={feedback} onDismiss={clearFeedback} />
+        {busy && (
+          <div className="admin-saving-bar">
+            <span className="admin-btn-spinner" />
+            {uploading ? 'Uploading file…' : 'Saving project…'}
+          </div>
+        )}
         <h1 className="admin-page-title">{editing.id ? 'Edit' : 'New'} Project</h1>
         <div className="admin-card">
           <div className="admin-form-group">
@@ -158,16 +195,14 @@ export default function ProjectsPage() {
             <label><input type="checkbox" checked={editing.isGoplayGroup} onChange={(e) => setEditing({ ...editing, isGoplayGroup: e.target.checked })} /> GoPlay Group</label>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="admin-btn admin-btn--primary" onClick={save}><FiSave /> Save</button>
-          <button className="admin-btn admin-btn--ghost" onClick={() => setEditing(null)}>Cancel</button>
-        </div>
+        <AdminFormActions saving={busy} onSave={handleSave} onCancel={() => setEditing(null)} savingLabel="Saving..." />
       </div>
     )
   }
 
   return (
     <div>
+      <AdminFeedback feedback={feedback} onDismiss={clearFeedback} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 className="admin-page-title">Projects</h1>
@@ -183,7 +218,7 @@ export default function ProjectsPage() {
           </div>
           <div className="admin-actions">
             <button className="admin-btn admin-btn--ghost" onClick={() => setEditing(item)}><FiEdit2 /></button>
-            <button className="admin-btn admin-btn--danger" onClick={() => { deleteItem(COLLECTIONS.PROJECTS, item.id).then(load) }}><FiTrash2 /></button>
+            <button className="admin-btn admin-btn--danger" disabled={saving} onClick={() => handleDelete(item.id)}><FiTrash2 /></button>
           </div>
         </div>
       ))}

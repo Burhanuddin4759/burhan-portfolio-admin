@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { FiSave, FiUpload } from 'react-icons/fi'
+import { FiUpload } from 'react-icons/fi'
 import { getProfile, saveProfile } from '../../services/firestoreService'
 import { uploadToCloudinary } from '../../utils/uploadImage'
+import { useAdminAction } from '../../hooks/useAdminAction'
+import AdminFeedback from '../components/AdminFeedback'
+import AdminSaveButton from '../components/AdminSaveButton'
 import type { Profile } from '../../models/types'
 import '../components/AdminForms.css'
 
@@ -12,8 +15,8 @@ const EMPTY: Profile = {
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile>(EMPTY)
-  const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const { saving, feedback, run, clearFeedback, setFeedback } = useAdminAction()
   const photoRef = useRef<HTMLInputElement>(null)
   const resumeRef = useRef<HTMLInputElement>(null)
 
@@ -21,28 +24,28 @@ export default function ProfilePage() {
     getProfile().then((p) => { if (p) setProfile(p) })
   }, [])
 
-  const handleSave = async () => {
-    setSaving(true)
-    setMsg('')
-    try {
+  const handleSave = () => {
+    run(async () => {
       await saveProfile(profile)
-      setMsg('Profile saved successfully!')
-    } catch {
-      setMsg('Failed to save profile.')
-    } finally {
-      setSaving(false)
-    }
+    }, 'Profile saved successfully!')
   }
 
   const handleUpload = async (file: File, field: 'photoUrl' | 'resumeUrl') => {
+    setUploading(true)
+    setFeedback(null)
     try {
       const folder = field === 'photoUrl' ? 'portfolio/profile/photo' : 'portfolio/profile/resume'
       const { url } = await uploadToCloudinary(file, { folder })
       setProfile((p) => ({ ...p, [field]: url }))
+      setFeedback({ type: 'success', message: field === 'photoUrl' ? 'Photo uploaded!' : 'Resume uploaded!' })
     } catch {
-      setMsg('Upload failed.')
+      setFeedback({ type: 'error', message: 'Upload failed. Please try again.' })
+    } finally {
+      setUploading(false)
     }
   }
+
+  const busy = saving || uploading
 
   const updateList = (field: 'aboutParagraphs' | 'deliverables', index: number, value: string) => {
     setProfile((p) => {
@@ -57,10 +60,16 @@ export default function ProfilePage() {
   }
 
   return (
-    <div>
+    <div className={busy ? 'admin-panel--busy' : ''}>
       <h1 className="admin-page-title">Profile</h1>
       <p className="admin-page-subtitle">Manage your personal information and hero section</p>
-      {msg && <div className={`admin-alert ${msg.includes('success') ? 'admin-alert--success' : 'admin-alert--error'}`}>{msg}</div>}
+      <AdminFeedback feedback={feedback} onDismiss={clearFeedback} />
+      {busy && (
+        <div className="admin-saving-bar">
+          <span className="admin-btn-spinner" />
+          {uploading ? 'Uploading file…' : 'Saving profile…'}
+        </div>
+      )}
 
       <div className="admin-card">
         <h3>Basic Info</h3>
@@ -107,13 +116,13 @@ export default function ProfilePage() {
             <label>Profile Photo</label>
             {profile.photoUrl && <img src={profile.photoUrl} alt="Profile" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', marginBottom: 8 }} />}
             <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], 'photoUrl')} />
-            <button className="admin-btn admin-btn--ghost" onClick={() => photoRef.current?.click()}><FiUpload /> Upload Photo</button>
+            <button type="button" className="admin-btn admin-btn--ghost" disabled={busy} onClick={() => photoRef.current?.click()}><FiUpload /> Upload Photo</button>
           </div>
           <div className="admin-form-group">
             <label>Resume (PDF)</label>
             {profile.resumeUrl && <p style={{ fontSize: '0.8rem', color: '#60a5fa', marginBottom: 8 }}>Resume uploaded</p>}
             <input ref={resumeRef} type="file" accept=".pdf,.doc,.docx" hidden onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], 'resumeUrl')} />
-            <button className="admin-btn admin-btn--ghost" onClick={() => resumeRef.current?.click()}><FiUpload /> Upload Resume</button>
+            <button type="button" className="admin-btn admin-btn--ghost" disabled={busy} onClick={() => resumeRef.current?.click()}><FiUpload /> Upload Resume</button>
           </div>
         </div>
       </div>
@@ -139,9 +148,7 @@ export default function ProfilePage() {
         <button className="admin-btn admin-btn--ghost" onClick={() => addListItem('deliverables')}>+ Add Deliverable</button>
       </div>
 
-      <button className="admin-btn admin-btn--primary" onClick={handleSave} disabled={saving}>
-        <FiSave /> {saving ? 'Saving...' : 'Save Profile'}
-      </button>
+      <AdminSaveButton saving={saving} onClick={handleSave} label="Save Profile" savingLabel="Saving..." disabled={uploading} />
     </div>
   )
 }
