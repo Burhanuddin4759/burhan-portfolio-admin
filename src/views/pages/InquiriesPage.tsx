@@ -1,23 +1,30 @@
 import { useEffect, useState } from 'react'
 import { getInquiries, updateInquiryStatus } from '../../services/firestoreService'
+import { useAdminAction } from '../../hooks/useAdminAction'
+import AdminFeedback from '../components/AdminFeedback'
+import AdminSaveButton from '../components/AdminSaveButton'
 import type { Inquiry } from '../../models/types'
 import '../components/AdminForms.css'
 
 export default function InquiriesPage() {
   const [items, setItems] = useState<(Inquiry & { id: string })[]>([])
   const [selected, setSelected] = useState<(Inquiry & { id: string }) | null>(null)
+  const { saving, feedback, run, clearFeedback } = useAdminAction()
 
   const load = () => getInquiries().then(setItems)
   useEffect(() => { load() }, [])
 
-  const markStatus = async (id: string, status: string) => {
-    await updateInquiryStatus(id, status)
-    load()
-    if (selected?.id === id) setSelected({ ...selected, status })
+  const markStatus = (id: string, status: string) => {
+    run(async () => {
+      await updateInquiryStatus(id, status)
+      await load()
+      if (selected?.id === id) setSelected({ ...selected, status })
+    }, `Inquiry marked as ${status}.`)
   }
 
   return (
     <div>
+      <AdminFeedback feedback={feedback} onDismiss={clearFeedback} />
       <h1 className="admin-page-title">Inquiries</h1>
       <p className="admin-page-subtitle">Client inquiries from the Hire Me form</p>
 
@@ -37,7 +44,7 @@ export default function InquiriesPage() {
                 <td>{item.budgetRange}</td>
                 <td><span className={`admin-badge admin-badge--${item.status}`}>{item.status}</span></td>
                 <td>
-                  <button className="admin-btn admin-btn--ghost" onClick={() => setSelected(item)}>View</button>
+                  <button type="button" className="admin-btn admin-btn--ghost" onClick={() => setSelected(item)}>View</button>
                 </td>
               </tr>
             ))}
@@ -53,10 +60,10 @@ export default function InquiriesPage() {
           <p><strong>Budget:</strong> {selected.budgetRange}</p>
           <p style={{ marginTop: '1rem' }}><strong>Details:</strong></p>
           <p style={{ color: '#cbd5e1', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{selected.projectDetails}</p>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
-            <button className="admin-btn admin-btn--primary" onClick={() => markStatus(selected.id, 'read')}>Mark Read</button>
-            <button className="admin-btn admin-btn--ghost" onClick={() => markStatus(selected.id, 'replied')}>Mark Replied</button>
-            <button className="admin-btn admin-btn--ghost" onClick={() => setSelected(null)}>Close</button>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+            <AdminSaveButton saving={saving} onClick={() => markStatus(selected.id, 'read')} label="Mark Read" savingLabel="Updating..." />
+            <button type="button" className="admin-btn admin-btn--ghost" disabled={saving} onClick={() => markStatus(selected.id, 'replied')}>Mark Replied</button>
+            <button type="button" className="admin-btn admin-btn--ghost" disabled={saving} onClick={() => setSelected(null)}>Close</button>
           </div>
         </div>
       )}

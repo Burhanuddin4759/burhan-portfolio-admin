@@ -115,6 +115,75 @@
   cursor: not-allowed;
 }
 
+.admin-btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: admin-spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes admin-spin {
+  to { transform: rotate(360deg); }
+}
+
+.admin-feedback {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.admin-feedback span {
+  flex: 1;
+}
+
+.admin-feedback-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.15rem;
+  display: inline-flex;
+  opacity: 0.75;
+  font-size: 1rem;
+}
+
+.admin-feedback-dismiss:hover {
+  opacity: 1;
+}
+
+.admin-saving-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: 8px;
+  color: #93c5fd;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.admin-form-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-panel--busy {
+  position: relative;
+}
+
+.admin-panel--busy .admin-card {
+  opacity: 0.65;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
 .admin-table {
   width: 100%;
   border-collapse: collapse;

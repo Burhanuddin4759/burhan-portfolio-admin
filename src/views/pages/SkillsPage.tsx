@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { FiPlus, FiTrash2, FiEdit2, FiSave } from 'react-icons/fi'
+import { FiPlus, FiTrash2, FiEdit2 } from 'react-icons/fi'
 import { getSkills, createItem, updateItem, deleteItem } from '../../services/firestoreService'
 import { COLLECTIONS } from '../../constants/collections'
+import { useAdminAction } from '../../hooks/useAdminAction'
+import AdminFeedback from '../components/AdminFeedback'
+import AdminFormActions from '../components/AdminFormActions'
 import type { SkillGroup } from '../../models/types'
 import '../components/AdminForms.css'
 
@@ -9,21 +12,39 @@ export default function SkillsPage() {
   const [items, setItems] = useState<(SkillGroup & { id: string })[]>([])
   const [editing, setEditing] = useState<(SkillGroup & { id?: string }) | null>(null)
   const [skillInput, setSkillInput] = useState('')
+  const { saving, feedback, run, clearFeedback } = useAdminAction()
 
   const load = () => getSkills().then(setItems)
   useEffect(() => { load() }, [])
 
-  const save = async () => {
+  const handleSave = () => {
     if (!editing) return
-    if (editing.id) await updateItem(COLLECTIONS.SKILLS, editing.id, editing)
-    else await createItem(COLLECTIONS.SKILLS, editing)
-    setEditing(null)
-    load()
+    run(async () => {
+      if (editing.id) await updateItem(COLLECTIONS.SKILLS, editing.id, editing)
+      else await createItem(COLLECTIONS.SKILLS, editing)
+      setEditing(null)
+      setSkillInput('')
+      await load()
+    }, editing.id ? 'Skill group updated successfully!' : 'Skill group created successfully!')
+  }
+
+  const handleDelete = (id: string) => {
+    run(async () => {
+      await deleteItem(COLLECTIONS.SKILLS, id)
+      await load()
+    }, 'Skill group deleted.')
   }
 
   if (editing) {
     return (
-      <div>
+      <div className={saving ? 'admin-panel--busy' : ''}>
+        <AdminFeedback feedback={feedback} onDismiss={clearFeedback} />
+        {saving && (
+          <div className="admin-saving-bar">
+            <span className="admin-btn-spinner" />
+            Saving skill group…
+          </div>
+        )}
         <h1 className="admin-page-title">{editing.id ? 'Edit' : 'New'} Skill Group</h1>
         <div className="admin-card">
           <div className="admin-form-group">
@@ -47,21 +68,19 @@ export default function SkillsPage() {
             </div>
             <div className="admin-tag-input">
               {editing.skills.map((s, i) => (
-                <span key={i} className="admin-tag">{s}<button onClick={() => setEditing({ ...editing, skills: editing.skills.filter((_, j) => j !== i) })}>×</button></span>
+                <span key={i} className="admin-tag">{s}<button type="button" onClick={() => setEditing({ ...editing, skills: editing.skills.filter((_, j) => j !== i) })}>×</button></span>
               ))}
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="admin-btn admin-btn--primary" onClick={save}><FiSave /> Save</button>
-          <button className="admin-btn admin-btn--ghost" onClick={() => setEditing(null)}>Cancel</button>
-        </div>
+        <AdminFormActions saving={saving} onSave={handleSave} onCancel={() => setEditing(null)} savingLabel="Saving..." />
       </div>
     )
   }
 
   return (
     <div>
+      <AdminFeedback feedback={feedback} onDismiss={clearFeedback} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 className="admin-page-title">Skills</h1>
@@ -74,7 +93,7 @@ export default function SkillsPage() {
           <div><h4>{item.title}</h4><p>{item.skills.join(', ')}</p></div>
           <div className="admin-actions">
             <button className="admin-btn admin-btn--ghost" onClick={() => setEditing(item)}><FiEdit2 /></button>
-            <button className="admin-btn admin-btn--danger" onClick={() => deleteItem(COLLECTIONS.SKILLS, item.id).then(load)}><FiTrash2 /></button>
+            <button className="admin-btn admin-btn--danger" disabled={saving} onClick={() => handleDelete(item.id)}><FiTrash2 /></button>
           </div>
         </div>
       ))}

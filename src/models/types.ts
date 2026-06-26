@@ -97,8 +97,10 @@ export interface Inquiry {
 export interface BlogPost {
   id?: string
   title: string
+  slug: string
   excerpt: string
+  content: string
   imageUrl?: string
-  url?: string
+  technologies?: string[]
   createdAt?: { seconds: number }
 }
