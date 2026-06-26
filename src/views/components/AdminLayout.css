@@ -1,0 +1,130 @@
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.admin-sidebar {
+  width: 260px;
+  background: #1e293b;
+  border-right: 1px solid rgba(148, 163, 184, 0.1);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 50;
+}
+
+.admin-sidebar-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.admin-sidebar-header h1 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.admin-sidebar-header p {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+.admin-nav {
+  flex: 1;
+  padding: 1rem 0.75rem;
+  overflow-y: auto;
+}
+
+.admin-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  color: #94a3b8;
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin-bottom: 0.25rem;
+}
+
+.admin-nav-link:hover,
+.admin-nav-link.active {
+  background: rgba(37, 99, 235, 0.12);
+  color: #60a5fa;
+}
+
+.admin-nav-link svg {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.admin-sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.admin-logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  color: #f87171;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.admin-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.admin-main {
+  flex: 1;
+  margin-left: 260px;
+  padding: 2rem;
+  min-height: 100vh;
+}
+
+.admin-page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 0.5rem;
+}
+
+.admin-page-subtitle {
+  color: #64748b;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .admin-sidebar {
+    width: 100%;
+    position: relative;
+    height: auto;
+  }
+
+  .admin-layout {
+    flex-direction: column;
+  }
+
+  .admin-main {
+    margin-left: 0;
+    padding: 1.5rem;
+  }
+}
